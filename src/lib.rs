@@ -1,15 +1,31 @@
 #![no_std]
 #![cfg_attr(test, no_main)]
 #![feature(custom_test_frameworks)]
-#![test_runner(crate::test_runner)]
+#![feature(abi_x86_interrupt)]
+#![feature(const_fn_trait_bound)]
 #![reexport_test_harness_main = "test_main"]
+#![test_runner(crate::test_runner)]
 
-
+pub mod interrupts;
 pub mod serial;
 pub mod vga_buffer;
-
+pub mod gdt;
 
 use core::panic::PanicInfo;
+
+pub fn init() {
+    gdt::init();
+    interrupts::init_idt();
+    unsafe { interrupts::PICS.lock().initialize() };
+    x86_64::instructions::interrupts::enable();
+
+}
+
+pub fn hlt_loop() -> ! {
+    loop {
+        x86_64::instructions::hlt();
+    }
+}
 
 pub trait Testable {
     fn run(&self) -> ();
@@ -38,15 +54,17 @@ pub fn test_panic_handler(info: &PanicInfo) -> ! {
     serial_println!("[failed]\n");
     serial_println!("Error: {}\n", info);
     exit_qemu(QemuExitCode::Failed);
-    loop {}
+    hlt_loop();
 }
 
 /// Entry point for `cargo test`
 #[cfg(test)]
 #[no_mangle]
 pub extern "C" fn _start() -> ! {
+    init();
+
     test_main();
-    loop {}
+    hlt_loop();
 }
 
 #[cfg(test)]
@@ -54,7 +72,6 @@ pub extern "C" fn _start() -> ! {
 fn panic(info: &PanicInfo) -> ! {
     test_panic_handler(info)
 }
-
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u32)]
@@ -72,3 +89,7 @@ pub fn exit_qemu(exit_code: QemuExitCode) {
     }
 }
 
+#[test_case]
+fn test_breakpoint_exception() {
+    x86_64::instructions::interrupts::int3();
+}

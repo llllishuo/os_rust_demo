@@ -4,6 +4,8 @@
 #![test_runner(os_rust_demo::test_runner)]
 #![reexport_test_harness_main = "test_main"]
 
+extern crate alloc;
+
 use alloc::vec;
 use alloc::{boxed::Box, rc::Rc, vec::Vec};
 use bootloader::{entry_point, BootInfo};
@@ -23,8 +25,6 @@ use x86_64::{
 };
 
 entry_point!(kernel_main);
-
-extern crate alloc;
 
 pub extern "C" fn _main_(boot_info: &'static BootInfo) -> ! {
     println!("Hello World{}", "!");
@@ -48,7 +48,6 @@ pub extern "C" fn _main_(boot_info: &'static BootInfo) -> ! {
 
 fn kernel_main(boot_info: &'static BootInfo) -> ! {
     println!("Hello World!");
-
     init();
 
     let phys_mem_offset = VirtAddr::new(boot_info.physical_memory_offset);
